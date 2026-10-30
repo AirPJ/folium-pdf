@@ -6,9 +6,11 @@ import { IconUpload } from "./components/Icons";
 import { OrganizeView } from "./components/OrganizeView";
 import { ReadView } from "./components/ReadView";
 import { TopBar } from "./components/TopBar";
+import { UpdateBanner } from "./components/Updates";
 import { Welcome } from "./components/Welcome";
 import { fileToPicked, isDesktop, onCloseRequested, onFileDrop, setWindowTitle, startupFiles } from "./lib/platform";
 import { t } from "./i18n";
+import { canUpdate } from "./lib/updater";
 import { getState, useActiveDoc, useStore } from "./store";
 
 function useTheme() {
@@ -94,6 +96,11 @@ export function App() {
   useEffect(() => {
     let off = () => {};
     onFileDrop(A.openPaths, setHover).then((fn) => (off = fn));
+    A.loadAppVersion();
+    // Automatic update check, a few seconds after start so it never slows opening.
+    const updateTimer = setTimeout(() => {
+      if (getState().autoUpdate && canUpdate()) A.checkUpdates(true);
+    }, 4000);
     startupFiles().then((paths) => {
       if (paths.length) A.openPaths(paths);
     });
@@ -102,6 +109,7 @@ export function App() {
       (fn) => (offClose = fn),
     );
     return () => {
+      clearTimeout(updateTimer);
       off();
       offClose();
     };
@@ -133,6 +141,7 @@ export function App() {
   return (
     <div className="app" {...htmlDrop}>
       <TopBar />
+      <UpdateBanner />
       {body}
       {hover && (
         <div className="drop-overlay" aria-hidden="true">

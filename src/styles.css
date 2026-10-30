@@ -1440,3 +1440,83 @@ select.input {
 .small-num {
   font-size: 28px;
 }
+
+/* ------------------------------------------------------------- updates */
+
+.update-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 12px 4px 16px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.update-banner > svg {
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+.update-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: transparent;
+}
+.update-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.about-btn {
+  position: relative;
+}
+.badge-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.about-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.about-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.about-name {
+  font-size: 16px;
+}
+.update-status {
+  font-size: 14px;
+  min-height: 20px;
+}
+.release-notes {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--raised);
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-line;
+  font-size: 13px;
+  user-select: text;
+}

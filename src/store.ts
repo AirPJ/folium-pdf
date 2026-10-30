@@ -78,7 +78,20 @@ export type Dialog =
       resolve: (password: string | null) => void;
     }
   | { type: "split" | "range" | "compress" | "protect" | "export"; docId: string }
+  | { type: "about" }
   | null;
+
+export interface UpdateState {
+  status: "idle" | "checking" | "none" | "available" | "downloading" | "installing" | "error";
+  version?: string;
+  notes?: string;
+  /** 0–1 while downloading, null when the size is unknown. */
+  progress?: number | null;
+  error?: string;
+  /** The banner was closed with "Later". */
+  dismissed?: boolean;
+  checkedAt?: number;
+}
 
 export interface State {
   sources: Record<string, SourceMeta>;
@@ -103,6 +116,9 @@ export interface State {
   /** Incremented to ask the reader to scroll to the current page. */
   jump: number;
   search: { query: string; hits: number[]; pos: number; running: boolean; docId: string | null };
+  update: UpdateState;
+  autoUpdate: boolean;
+  appVersion: string;
 }
 
 function stored(key: string): string | null {
@@ -122,6 +138,10 @@ function loadLang(): Lang {
   const l = stored("folium.lang");
   if (l === "en" || l === "fr") return l;
   return typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("fr") ? "fr" : "en";
+}
+
+function loadAutoUpdate(): boolean {
+  return stored("folium.autoUpdate") !== "off";
 }
 
 let state: State = {
@@ -146,6 +166,9 @@ let state: State = {
   busy: null,
   jump: 0,
   search: { query: "", hits: [], pos: 0, running: false, docId: null },
+  update: { status: "idle" },
+  autoUpdate: loadAutoUpdate(),
+  appVersion: "",
 };
 
 const listeners = new Set<() => void>();

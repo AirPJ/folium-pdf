@@ -33,6 +33,7 @@ import {
   type PickedFile,
   type ProtectOptions,
 } from "./lib/platform";
+import { appVersion, checkForUpdate, installUpdate as runInstall } from "./lib/updater";
 import {
   getState,
   setState,
@@ -111,6 +112,10 @@ function askPassword(fileName: string, error: string | null): Promise<string | n
       },
     }));
   });
+}
+
+export function openAbout() {
+  setState((s) => ({ ...s, dialog: { type: "about" } }));
 }
 
 export function openDialogFor(type: "split" | "range" | "compress" | "protect" | "export", docId: string) {
@@ -995,3 +1000,70 @@ export function clearSearch() {
 }
 
 export { num };
+
+// ----------------------------------------------------------------- updates
+
+export async function loadAppVersion() {
+  try {
+    const v = await appVersion();
+    setState((s) => ({ ...s, appVersion: v }));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Asks GitHub whether a newer Folium exists. When `silent` (the automatic
+ * check at startup), failures are not shown: being offline is normal.
+ */
+export async function checkUpdates(silent = false) {
+  const status = getState().update.status;
+  if (status === "checking" || status === "downloading" || status === "installing") return;
+  setState((s) => ({ ...s, update: { ...s.update, status: "checking", error: undefined } }));
+  try {
+    const info = await checkForUpdate();
+    setState((s) => ({
+      ...s,
+      update: info
+        ? { status: "available", version: info.version, notes: info.notes, dismissed: false, checkedAt: Date.now() }
+        : { status: "none", checkedAt: Date.now() },
+    }));
+  } catch (e) {
+    setState((s) => ({
+      ...s,
+      update: silent ? { status: "idle" } : { status: "error", error: errorText(e), checkedAt: Date.now() },
+    }));
+  }
+}
+
+export function dismissUpdate() {
+  setState((s) => ({ ...s, update: { ...s.update, dismissed: true } }));
+}
+
+export function setAutoUpdate(on: boolean) {
+  try {
+    localStorage.setItem("folium.autoUpdate", on ? "on" : "off");
+  } catch {
+    /* ignore */
+  }
+  setState((s) => ({ ...s, autoUpdate: on }));
+}
+
+/** Installs the update. Unsaved work is handled first, as when quitting. */
+export async function installUpdate() {
+  if (getState().update.status !== "available") return;
+  if (!(await confirmQuit())) return;
+  closeDialog();
+  setState((s) => ({ ...s, update: { ...s.update, status: "downloading", progress: 0, dismissed: false } }));
+  try {
+    await runInstall((p) =>
+      setState((s) => ({
+        ...s,
+        update: { ...s.update, status: p === 1 ? "installing" : "downloading", progress: p },
+      })),
+    );
+  } catch (e) {
+    setState((s) => ({ ...s, update: { ...s.update, status: "error", error: errorText(e) } }));
+    toast(t("The update could not be installed: {why}", { why: errorText(e) }), "error");
+  }
+}

@@ -4,6 +4,7 @@ import { formatBytes, num, t, tn } from "../i18n";
 import { parseRanges, type CompressLevel } from "../lib/pdf";
 import { getState, useStore, type Dialog } from "../store";
 import { IconEye, IconEyeOff, IconLock } from "./Icons";
+import { AboutDialogBody } from "./Updates";
 
 function Modal({
   title,
@@ -487,6 +488,12 @@ export function Dialogs() {
       return <Protect docId={dialog.docId} />;
     case "export":
       return <Export docId={dialog.docId} />;
+    case "about":
+      return (
+        <Modal title={t("About and updates")} onClose={A.closeDialog}>
+          <AboutDialogBody />
+        </Modal>
+      );
   }
 }
 

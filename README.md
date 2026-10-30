@@ -2,7 +2,7 @@
 
 A free, ad-free PDF tool that works entirely offline. No account, no uploads, no tracking.
 
-**Status:** test version 0.2. Windows first; macOS, Linux, iPhone and Android later. Available in English and French.
+**Status:** test version 0.3. Windows first; macOS, Linux, iPhone and Android later. Available in English and French.
 
 ## What it does
 
@@ -21,6 +21,8 @@ A free, ad-free PDF tool that works entirely offline. No account, no uploads, no
 ## Download
 
 Installers are built automatically for every change. Go to [Releases](../../releases), open **Test build** and download the `.exe` file. Official versions will be published there too.
+
+Once installed, Folium updates itself: it checks for a new version when it starts (you can turn this off under About and updates, the ⓘ button) and installs it with one click. The check only asks GitHub for the latest version number; updates are signed and verified before installing.
 
 Until the installer is code-signed, Windows SmartScreen shows "Windows protected your PC". Click **More info → Run anyway**.
 
@@ -68,6 +70,10 @@ Until the installer is code-signed, Windows SmartScreen shows "Windows protected
 Everything runs on your computer. The native side reads and writes the files you choose and runs qpdf for passwords and optimisation.
 
 Translations live in `src/locales/`. English text is the key; `npm run i18n:check` lists any missing translations.
+
+## Releasing updates
+
+Every push to `main` builds a signed installer and publishes it, with `latest.json` for the updater, as the **Test build** release. Version numbers are `MAJOR.MINOR` from `package.json` plus the build number. Signing needs two repository secrets: `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Keep a copy of the key: without it, installed copies can't receive updates.
 
 ## Building it yourself
 

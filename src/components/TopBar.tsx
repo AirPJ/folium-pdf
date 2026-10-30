@@ -18,6 +18,7 @@ import {
   IconSearch,
   IconSun,
   IconUndo,
+  IconInfo,
 } from "./Icons";
 
 function Tabs() {
@@ -202,6 +203,21 @@ function ThemeButton() {
   );
 }
 
+function AboutButton() {
+  const hasUpdate = useStore((s) => s.update.status === "available");
+  return (
+    <button
+      className="icon-btn bordered about-btn"
+      aria-label={hasUpdate ? `${t("About and updates")} — ${t("update available")}` : t("About and updates")}
+      title={t("About and updates")}
+      onClick={A.openAbout}
+    >
+      <IconInfo size={16} />
+      {hasUpdate && <span className="badge-dot" aria-hidden="true" />}
+    </button>
+  );
+}
+
 function LanguageButton() {
   const lang = useStore((s) => s.lang);
   return (
@@ -260,6 +276,7 @@ export function TopBar() {
         )}
         <LanguageButton />
         <ThemeButton />
+        <AboutButton />
         {showDoc && (
           <button
             className="btn btn-primary"

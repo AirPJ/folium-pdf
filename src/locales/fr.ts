@@ -267,4 +267,28 @@ export const fr: Record<string, string> = {
     "« {name} » était protégé par un mot de passe. Folium peut l'enregistrer avec le même mot de passe, ou sans.",
   "“{part}” is outside 1–{n}.": "« {part} » est hors de 1–{n}.",
   "“{part}” isn't a page or range.": "« {part} » n'est ni une page ni une plage.",
+  "About and updates": "À propos et mises à jour",
+  "update available": "mise à jour disponible",
+  "The update could not be installed: {why}": "La mise à jour n'a pas pu être installée\u00a0: {why}",
+  "Installing Folium {v}. Folium will restart…": "Installation de Folium {v}. Folium va redémarrer…",
+  "Downloading Folium {v}… {pct}%": "Téléchargement de Folium {v}… {pct}\u00a0%",
+  "Downloading Folium {v}…": "Téléchargement de Folium {v}…",
+  "Folium {v} is available.": "Folium {v} est disponible.",
+  "What's new": "Nouveautés",
+  "Install and restart": "Installer et redémarrer",
+  Later: "Plus tard",
+  "Last checked at {time}.": "Dernière vérification à {time}.",
+  "Checking for updates…": "Recherche de mises à jour…",
+  "Folium is up to date.": "Folium est à jour.",
+  "Couldn't check for updates. Are you connected to the internet?":
+    "Impossible de vérifier les mises à jour. Êtes-vous connecté à Internet\u00a0?",
+  "Version {v}": "Version {v}",
+  "Free, ad-free and open source (GPL-3.0). Your files never leave this computer.":
+    "Gratuit, sans publicité et open source (GPL-3.0). Vos fichiers ne quittent jamais cet ordinateur.",
+  "Check for updates when Folium starts": "Rechercher les mises à jour au démarrage de Folium",
+  "Checking only asks GitHub for the latest version number. No files or personal data are sent. Updates are signed and verified before installing.":
+    "La vérification demande seulement à GitHub le dernier numéro de version. Aucun fichier ni donnée personnelle n'est envoyé. Les mises à jour sont signées et vérifiées avant l'installation.",
+  "Updates are available in the desktop app.": "Les mises à jour sont disponibles dans l'application de bureau.",
+  Close: "Fermer",
+  "Check for updates": "Rechercher des mises à jour",
 };
