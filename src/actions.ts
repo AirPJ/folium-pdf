@@ -7,6 +7,7 @@ import {
   loadSource,
   mightBeEncrypted,
   pageImageFile,
+  pagePrintImage,
   pageText,
   PageRangeError,
   parseRanges,
@@ -33,6 +34,7 @@ import {
   type PickedFile,
   type ProtectOptions,
 } from "./lib/platform";
+import { printImages, type PrintPage } from "./lib/print";
 import { appVersion, checkForUpdate, installUpdate as runInstall } from "./lib/updater";
 import {
   getState,
@@ -213,14 +215,25 @@ function newDoc(srcId: string): Doc {
   };
 }
 
+export interface OpenOptions {
+  /** Always open as tabs, even in Combine mode (files sent from the file explorer). */
+  asTabs?: boolean;
+}
+
+/** Same file? Windows paths are not case-sensitive. */
+function samePath(a: string, b: string): boolean {
+  return a.includes("\\") || b.includes("\\") ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
 /** Opens files as tabs (or adds them to Combine when in Combine mode). */
-export async function openFiles(files: PickedFile[]) {
+export async function openFiles(files: PickedFile[], opts: OpenOptions = {}) {
   if (!files.length) return;
   const st = getState();
+  const toCombine = st.mode === "combine" && !opts.asTabs;
   const fresh = files.filter((f) => {
     if (!f.path) return true;
-    const existing = st.docs.find((d) => d.path === f.path);
-    if (existing && st.mode !== "combine") {
+    const existing = st.docs.find((d) => d.path !== null && samePath(d.path, f.path!));
+    if (existing && !toCombine) {
       activate(existing.id);
       return false;
     }
@@ -234,13 +247,18 @@ export async function openFiles(files: PickedFile[]) {
   );
   try {
     const ids = await addSources(fresh);
-    if (getState().mode === "combine") {
+    if (toCombine && getState().mode === "combine") {
       addToCombine(ids);
       return;
     }
     const docs = ids.map(newDoc);
     if (!docs.length) return;
-    setState((s) => ({ ...s, docs: [...s.docs, ...docs], activeId: docs[docs.length - 1].id }));
+    setState((s) => ({
+      ...s,
+      docs: [...s.docs, ...docs],
+      activeId: docs[docs.length - 1].id,
+      mode: s.mode === "combine" ? "read" : s.mode,
+    }));
   } finally {
     setBusy(null);
   }
@@ -254,7 +272,7 @@ export async function openDialog() {
   }
 }
 
-export async function openPaths(paths: string[]) {
+export async function openPaths(paths: string[], opts: OpenOptions = {}) {
   const files: PickedFile[] = [];
   for (const p of paths) {
     try {
@@ -264,7 +282,7 @@ export async function openPaths(paths: string[]) {
       forgetRecent(p);
     }
   }
-  await openFiles(files);
+  await openFiles(files, opts);
 }
 
 // ------------------------------------------------------------------ recent
@@ -808,6 +826,36 @@ export async function exportImages(
     toast(t("Could not export: {why}", { why: errorText(e) }), "error");
   } finally {
     setBusy(null);
+  }
+}
+
+// ------------------------------------------------------------------- print
+
+let printing = false;
+
+/** Prints the document as it is now (including unsaved page changes). */
+export async function printDoc(id: string) {
+  const d = findDoc(id);
+  if (!d || printing || !d.pages.length) return;
+  printing = true;
+  // Sharp text on paper; a little lower for long documents to save memory.
+  const dpi = d.pages.length > 100 ? 150 : 200;
+  try {
+    const pages: PrintPage[] = [];
+    for (let i = 0; i < d.pages.length; i++) {
+      setBusy(t("Preparing page {done} of {total} for printing…", { done: i + 1, total: d.pages.length }));
+      const p = d.pages[i];
+      pages.push(await pagePrintImage(p.srcId, p.srcIndex, p.rotation, dpi));
+    }
+    setBusy(null);
+    // Let the busy overlay disappear before the dialog opens.
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    await printImages(pages);
+  } catch (e) {
+    toast(t("Could not print: {why}", { why: errorText(e) }), "error");
+  } finally {
+    setBusy(null);
+    printing = false;
   }
 }
 

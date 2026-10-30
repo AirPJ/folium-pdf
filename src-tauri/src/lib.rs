@@ -7,7 +7,9 @@
 mod pdfops;
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use tauri::ipc::{InvokeBody, Request, Response};
+use tauri::{Emitter, Manager};
 
 fn raw_body(request: &Request<'_>) -> Result<Vec<u8>, String> {
     match request.body() {
@@ -94,20 +96,59 @@ fn write_file(request: Request<'_>) -> Result<(), String> {
     })
 }
 
-/// PDF files passed on the command line, e.g. when the user double-clicks a
-/// PDF or uses "Open with Folium PDF".
-#[tauri::command]
-fn startup_files() -> Vec<String> {
-    std::env::args()
-        .skip(1)
-        .filter(|a| a.to_lowercase().ends_with(".pdf") && Path::new(a).is_file())
+/// PDF files waiting to be opened: those passed at launch, then those sent
+/// by later launches (double-click in the file explorer while Folium is
+/// already running). The interface takes them with `take_open_requests`.
+#[derive(Default)]
+struct OpenQueue(Mutex<Vec<String>>);
+
+/// Keeps the arguments that are existing PDF files. Relative paths are
+/// resolved against `cwd` (the folder the launching process was started in).
+fn pdf_args(args: impl IntoIterator<Item = String>, cwd: &Path) -> Vec<String> {
+    args.into_iter()
+        .filter(|a| a.to_lowercase().ends_with(".pdf"))
+        .map(|a| {
+            let p = PathBuf::from(&a);
+            if p.is_absolute() { p } else { cwd.join(p) }
+        })
+        .filter(|p| p.is_file())
+        .map(|p| p.to_string_lossy().into_owned())
         .collect()
 }
 
+/// Returns (and forgets) the files waiting to be opened.
+#[tauri::command]
+fn take_open_requests(queue: tauri::State<'_, OpenQueue>) -> Vec<String> {
+    std::mem::take(&mut *queue.0.lock().unwrap_or_else(|e| e.into_inner()))
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let at_launch = pdf_args(std::env::args().skip(1), &cwd);
+
+    let builder = tauri::Builder::default();
+
+    // One window for the whole app: opening a PDF while Folium is running
+    // sends it to the running window (new tab) instead of starting a second
+    // copy. Registered first, as the plugin requires.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        let files = pdf_args(argv.into_iter().skip(1), Path::new(&cwd));
+        if !files.is_empty() {
+            let queue = app.state::<OpenQueue>();
+            queue.0.lock().unwrap_or_else(|e| e.into_inner()).extend(files);
+            let _ = app.emit("open-requests", ());
+        }
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.unminimize();
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    }));
+
+    builder
+        .manage(OpenQueue(Mutex::new(at_launch)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
@@ -120,7 +161,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_file,
             write_file,
-            startup_files,
+            take_open_requests,
             pdf_is_encrypted,
             pdf_unlock,
             pdf_protect,

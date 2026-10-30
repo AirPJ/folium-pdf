@@ -19,6 +19,7 @@ import {
   IconSun,
   IconUndo,
   IconInfo,
+  IconPrint,
 } from "./Icons";
 
 function Tabs() {
@@ -271,6 +272,14 @@ export function TopBar() {
               onClick={() => A.redo(doc.id)}
             >
               <IconRedo size={16} />
+            </button>
+            <button
+              className="icon-btn"
+              aria-label={t("Print (Ctrl+P)")}
+              title={t("Print (Ctrl+P)")}
+              onClick={() => A.printDoc(doc.id)}
+            >
+              <IconPrint size={16} />
             </button>
           </div>
         )}

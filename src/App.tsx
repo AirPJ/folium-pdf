@@ -8,7 +8,7 @@ import { ReadView } from "./components/ReadView";
 import { TopBar } from "./components/TopBar";
 import { UpdateBanner } from "./components/Updates";
 import { Welcome } from "./components/Welcome";
-import { fileToPicked, isDesktop, onCloseRequested, onFileDrop, setWindowTitle, startupFiles } from "./lib/platform";
+import { fileToPicked, isDesktop, onCloseRequested, onFileDrop, onOpenRequests, setWindowTitle } from "./lib/platform";
 import { t } from "./i18n";
 import { canUpdate } from "./lib/updater";
 import { getState, useActiveDoc, useStore } from "./store";
@@ -25,11 +25,17 @@ function useTheme() {
 function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (anyDialog()) return;
       const s = getState();
       const doc = s.docs.find((d) => d.id === s.activeId);
       const ctrl = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
+      // Ctrl+P prints the document, never the app's own screen.
+      if (ctrl && k === "p") {
+        e.preventDefault();
+        if (!anyDialog() && doc && s.mode !== "combine") A.printDoc(doc.id);
+        return;
+      }
+      if (anyDialog()) return;
 
       if (ctrl && k === "o") return e.preventDefault(), A.openDialog();
       if (ctrl && k === "1" && doc) return e.preventDefault(), A.setMode("read");
@@ -101,9 +107,8 @@ export function App() {
     const updateTimer = setTimeout(() => {
       if (getState().autoUpdate && canUpdate()) A.checkUpdates(true);
     }, 4000);
-    startupFiles().then((paths) => {
-      if (paths.length) A.openPaths(paths);
-    });
+    let offOpen = () => {};
+    onOpenRequests((paths) => A.openPaths(paths, { asTabs: true })).then((fn) => (offOpen = fn));
     let offClose = () => {};
     onCloseRequested(A.confirmQuit, (why) => A.toast(t("Could not close the window: {why}", { why }), "error")).then(
       (fn) => (offClose = fn),
@@ -111,6 +116,7 @@ export function App() {
     return () => {
       clearTimeout(updateTimer);
       off();
+      offOpen();
       offClose();
     };
   }, []);

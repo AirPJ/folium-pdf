@@ -108,13 +108,27 @@ export async function writePath(path: string, bytes: Uint8Array, mime = "applica
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-export async function startupFiles(): Promise<string[]> {
-  if (!isDesktop) return [];
-  try {
-    return await invoke<string[]>("startup_files");
-  } catch {
-    return [];
-  }
+/**
+ * PDFs to open: those passed at launch, and those sent by a later launch
+ * (opening a PDF from the file explorer while Folium is already running).
+ * Calls `onFiles` now with any waiting files, then again whenever more
+ * arrive. Returns a function that stops listening.
+ */
+export async function onOpenRequests(onFiles: (paths: string[]) => void): Promise<() => void> {
+  if (!isDesktop) return () => {};
+  const take = async () => {
+    try {
+      const paths = await invoke<string[]>("take_open_requests");
+      if (paths.length) onFiles(paths);
+    } catch {
+      /* ignore */
+    }
+  };
+  const { listen } = await import("@tauri-apps/api/event");
+  // Listen first, then take: files sent in between are not missed.
+  const off = await listen("open-requests", take);
+  await take();
+  return off;
 }
 
 // ------------------------------------------------------------- qpdf (Rust)

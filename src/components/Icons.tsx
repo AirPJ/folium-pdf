@@ -208,3 +208,10 @@ export const IconInfo = (p: P) => (
     <path d="M12 11v6M12 7.5v.01" />
   </Svg>
 );
+export const IconPrint = (p: P) => (
+  <Svg {...p}>
+    <path d="M7 9V4h10v5" />
+    <rect x="3" y="9" width="18" height="8" rx="2" />
+    <path d="M7 14h10v6H7z" />
+  </Svg>
+);

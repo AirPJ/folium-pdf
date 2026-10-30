@@ -206,6 +206,26 @@ export async function pageImageFile(
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+/** Renders a page for printing: a PNG plus the page size in points. */
+export async function pagePrintImage(
+  srcId: string,
+  index: number,
+  rotation: number,
+  dpi: number,
+): Promise<{ blob: Blob; widthPt: number; heightPt: number }> {
+  let widthPt = 0;
+  let heightPt = 0;
+  const canvas = await drawPage(srcId, index, rotation, (w, h) => {
+    widthPt = w;
+    heightPt = h;
+    return Math.min(dpi / 72, 8000 / Math.max(w, h));
+  });
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+  canvas.width = canvas.height = 0;
+  if (!blob) throw new Error("render failed");
+  return { blob, widthPt, heightPt };
+}
+
 // ------------------------------------------------------------------- search
 
 const textCache = new Map<string, string>();

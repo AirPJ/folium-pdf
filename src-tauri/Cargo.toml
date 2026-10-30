@@ -1,6 +1,6 @@
 [package]
 name = "folium-pdf"
-version = "0.3.0"
+version = "0.4.0"
 description = "Folium PDF — a free, ad-free, offline PDF tool"
 authors = ["Folium PDF contributors"]
 license = "GPL-3.0-or-later"
@@ -24,6 +24,9 @@ qpdf = { version = "0.3", features = ["vendored"] }
 getrandom = "0.3"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
 
 [profile.release]
 codegen-units = 1

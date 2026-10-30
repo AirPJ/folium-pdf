@@ -11,6 +11,7 @@ import {
   IconImage,
   IconLock,
   IconPlus,
+  IconPrint,
   IconRotateLeft,
   IconRotateRight,
   IconSave,
@@ -239,6 +240,7 @@ function Tools({ doc }: { doc: Doc }) {
         <ToolButton icon={IconShrink} label={t("Compress…")} onClick={() => A.openDialogFor("compress", doc.id)} />
         <ToolButton icon={IconLock} label={t("Protect with password…")} onClick={() => A.openDialogFor("protect", doc.id)} />
         <ToolButton icon={IconImage} label={t("Export as images…")} onClick={() => A.openDialogFor("export", doc.id)} />
+        <ToolButton icon={IconPrint} label={t("Print…")} shortcut={t("Ctrl P")} onClick={() => A.printDoc(doc.id)} />
         <ToolButton icon={IconSave} label={t("Save a copy as…")} shortcut={t("Ctrl Shift S")} onClick={() => A.save(doc.id, true)} />
       </div>
       <div className="grow" />

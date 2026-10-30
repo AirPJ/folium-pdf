@@ -291,4 +291,9 @@ export const fr: Record<string, string> = {
   "Updates are available in the desktop app.": "Les mises à jour sont disponibles dans l'application de bureau.",
   Close: "Fermer",
   "Check for updates": "Rechercher des mises à jour",
+  "Could not print: {why}": "Impossible d'imprimer : {why}",
+  "Ctrl P": "Ctrl P",
+  "Preparing page {done} of {total} for printing…": "Préparation de la page {done} sur {total} pour l'impression…",
+  "Print (Ctrl+P)": "Imprimer (Ctrl+P)",
+  "Print…": "Imprimer…",
 };
