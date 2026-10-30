@@ -1,0 +1,10 @@
+node_modules/
+dist/
+public/pdfjs/
+src-tauri/target/
+src-tauri/gen/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
