@@ -44,6 +44,7 @@ export const fr: Record<string, string> = {
   "Compress…": "Compresser…",
   "Confirm password": "Confirmer le mot de passe",
   "Copy text and images": "Copier le texte et les images",
+  "Could not close the window: {why}": "Impossible de fermer la fenêtre\u00a0: {why}",
   "Could not combine: {why}": "Impossible de combiner : {why}",
   "Could not export: {why}": "Impossible d'exporter : {why}",
   "Could not extract: {why}": "Impossible d'extraire : {why}",

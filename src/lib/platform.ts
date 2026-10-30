@@ -188,13 +188,24 @@ export async function setWindowTitle(title: string): Promise<void> {
   }
 }
 
-/** Lets the app intercept closing the window (to ask about unsaved changes). */
-export async function onCloseRequested(handler: () => Promise<boolean>): Promise<() => void> {
+/**
+ * Lets the app intercept closing the window (to ask about unsaved changes).
+ * `onError` is called if the window can't be closed, so the user is never
+ * left with a close button that silently does nothing.
+ */
+export async function onCloseRequested(
+  handler: () => Promise<boolean>,
+  onError: (message: string) => void,
+): Promise<() => void> {
   if (!isDesktop) return () => {};
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   const win = getCurrentWindow();
   return win.onCloseRequested(async (event) => {
     event.preventDefault();
-    if (await handler()) await win.destroy();
+    try {
+      if (await handler()) await win.destroy();
+    } catch (e) {
+      onError(errorText(e));
+    }
   });
 }

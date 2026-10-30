@@ -98,7 +98,9 @@ export function App() {
       if (paths.length) A.openPaths(paths);
     });
     let offClose = () => {};
-    onCloseRequested(A.confirmQuit).then((fn) => (offClose = fn));
+    onCloseRequested(A.confirmQuit, (why) => A.toast(t("Could not close the window: {why}", { why }), "error")).then(
+      (fn) => (offClose = fn),
+    );
     return () => {
       off();
       offClose();

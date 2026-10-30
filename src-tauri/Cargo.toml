@@ -1,6 +1,6 @@
 [package]
 name = "folium-pdf"
-version = "0.2.0"
+version = "0.2.1"
 description = "Folium PDF — a free, ad-free, offline PDF tool"
 authors = ["Folium PDF contributors"]
 license = "GPL-3.0-or-later"
