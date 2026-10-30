@@ -178,3 +178,27 @@ export const IconSelect = (p: P) => (
     <rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="3 3" />
   </Svg>
 );
+export const IconImage = (p: P) => (
+  <Svg {...p}>
+    <rect x="4" y="5" width="16" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="M20 16l-5-5-8 8" />
+  </Svg>
+);
+export const IconShrink = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+  </Svg>
+);
+export const IconEye = (p: P) => (
+  <Svg {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+    <circle cx="12" cy="12" r="3" />
+  </Svg>
+);
+export const IconEyeOff = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.6 6.6C3.6 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 4.4-1" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </Svg>
+);

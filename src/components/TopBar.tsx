@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as A from "../actions";
+import { t } from "../i18n";
 import { useActiveDoc, useStore, type Mode, type Theme } from "../store";
 import {
   IconChevronDown,
@@ -24,7 +25,7 @@ function Tabs() {
   const activeId = useStore((s) => s.activeId);
   const mode = useStore((s) => s.mode);
   return (
-    <div className="tabs" role="tablist" aria-label="Open files">
+    <div className="tabs" role="tablist" aria-label={t("Open files")}>
       <div className="brand">
         <IconDoc size={16} />
         <span>Folium</span>
@@ -40,34 +41,33 @@ function Tabs() {
               onClick={() => A.activate(d.id)}
               onAuxClick={(e) => e.button === 1 && A.closeDoc(d.id)}
             >
-              {d.dirty && <span className="dirty-dot" aria-label="Unsaved changes" />}
+              {d.dirty && <span className="dirty-dot" aria-label={t("Unsaved changes")} />}
               {d.name}
             </button>
-            <button className="tab-close" aria-label={`Close ${d.name}`} onClick={() => A.closeDoc(d.id)}>
+            <button className="tab-close" aria-label={t("Close {name}", { name: d.name })} onClick={() => A.closeDoc(d.id)}>
               <IconClose size={12} />
             </button>
           </div>
         );
       })}
-      <button className="tab-add" aria-label="Open a PDF (Ctrl+O)" title="Open a PDF (Ctrl+O)" onClick={A.openDialog}>
+      <button className="tab-add" aria-label={t("Open a PDF (Ctrl+O)")} title={t("Open a PDF (Ctrl+O)")} onClick={A.openDialog}>
         <IconPlus size={15} />
       </button>
     </div>
   );
 }
 
-const MODES: { id: Mode; label: string; icon: typeof IconRead; key: string }[] = [
-  { id: "read", label: "Read", icon: IconRead, key: "1" },
-  { id: "organize", label: "Organize", icon: IconGrid, key: "2" },
-  { id: "combine", label: "Combine", icon: IconCombine, key: "3" },
-];
-
 function ModeSwitch() {
   const mode = useStore((s) => s.mode);
   const hasDoc = useStore((s) => s.docs.length > 0);
+  const modes: { id: Mode; label: string; icon: typeof IconRead; key: string }[] = [
+    { id: "read", label: t("Read"), icon: IconRead, key: "1" },
+    { id: "organize", label: t("Organize"), icon: IconGrid, key: "2" },
+    { id: "combine", label: t("Combine"), icon: IconCombine, key: "3" },
+  ];
   return (
-    <div className="segmented" role="group" aria-label="Mode">
-      {MODES.map((m) => {
+    <div className="segmented" role="group" aria-label={t("Mode")}>
+      {modes.map((m) => {
         const Icon = m.icon;
         const disabled = m.id !== "combine" && !hasDoc;
         return (
@@ -96,7 +96,7 @@ function PageNav() {
   return (
     <div className="toolbar-group">
       <label htmlFor="page-input" className="muted small">
-        Page
+        {t("Page")}
       </label>
       <input
         id="page-input"
@@ -114,7 +114,7 @@ function PageNav() {
         }}
         onBlur={() => setText(String(current))}
       />
-      <span className="muted small">of {doc.pages.length}</span>
+      <span className="muted small">{t("of {n}", { n: doc.pages.length })}</span>
     </div>
   );
 }
@@ -123,13 +123,13 @@ function Zoom() {
   const zoom = useStore((s) => s.zoom);
   return (
     <div className="toolbar-group">
-      <button className="icon-btn" aria-label="Zoom out (Ctrl+-)" title="Zoom out (Ctrl+-)" onClick={() => A.setZoom(zoom - 0.1)}>
+      <button className="icon-btn" aria-label={t("Zoom out (Ctrl+-)")} title={t("Zoom out (Ctrl+-)")} onClick={() => A.setZoom(zoom - 0.1)}>
         <IconMinus size={15} />
       </button>
-      <button className="btn btn-compact" title="Reset zoom (Ctrl+0)" onClick={() => A.setZoom(1)}>
-        {Math.round(zoom * 100)}%
+      <button className="btn btn-compact" title={t("Reset zoom (Ctrl+0)")} onClick={() => A.setZoom(1)}>
+        {t("{n}%", { n: Math.round(zoom * 100) })}
       </button>
-      <button className="icon-btn" aria-label="Zoom in (Ctrl++)" title="Zoom in (Ctrl++)" onClick={() => A.setZoom(zoom + 0.1)}>
+      <button className="icon-btn" aria-label={t("Zoom in (Ctrl++)")} title={t("Zoom in (Ctrl++)")} onClick={() => A.setZoom(zoom + 0.1)}>
         <IconPlus size={15} />
       </button>
     </div>
@@ -143,17 +143,17 @@ function SearchBox() {
   if (!doc) return null;
   const mine = search.docId === doc.id && search.query === q && q.trim() !== "";
   let status = "";
-  if (mine && search.running) status = "Searching…";
-  else if (mine && !search.hits.length) status = "No results";
-  else if (mine) status = `${search.pos + 1} / ${search.hits.length} pages`;
+  if (mine && search.running) status = t("Searching…");
+  else if (mine && !search.hits.length) status = t("No results");
+  else if (mine) status = t("{pos} / {n} pages", { pos: search.pos + 1, n: search.hits.length });
   return (
     <div className="search">
       <label className="search-box">
         <IconSearch size={15} />
         <input
           id="search-input"
-          placeholder="Search in document"
-          aria-label="Search in document"
+          placeholder={t("Search in document")}
+          aria-label={t("Search in document")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -171,10 +171,10 @@ function SearchBox() {
       </label>
       {mine && search.hits.length > 1 && (
         <>
-          <button className="icon-btn" aria-label="Previous result" onClick={() => A.searchStep(doc.id, -1)}>
+          <button className="icon-btn" aria-label={t("Previous result")} onClick={() => A.searchStep(doc.id, -1)}>
             <IconChevronUp size={15} />
           </button>
-          <button className="icon-btn" aria-label="Next result" onClick={() => A.searchStep(doc.id, 1)}>
+          <button className="icon-btn" aria-label={t("Next result")} onClick={() => A.searchStep(doc.id, 1)}>
             <IconChevronDown size={15} />
           </button>
         </>
@@ -184,23 +184,34 @@ function SearchBox() {
 }
 
 const THEME_NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
-const THEME_LABEL: Record<Theme, string> = {
-  system: "Theme: follows Windows",
-  light: "Theme: light",
-  dark: "Theme: dark",
-};
 
 function ThemeButton() {
   const theme = useStore((s) => s.theme);
+  const label =
+    theme === "system" ? t("Theme: follows Windows") : theme === "light" ? t("Theme: light") : t("Theme: dark");
   const Icon = theme === "dark" ? IconMoon : theme === "light" ? IconSun : IconMonitor;
   return (
     <button
       className="icon-btn bordered"
-      aria-label={`${THEME_LABEL[theme]}. Click to change.`}
-      title={`${THEME_LABEL[theme]} — click to change`}
+      aria-label={`${label}. ${t("Click to change.")}`}
+      title={`${label} — ${t("click to change")}`}
       onClick={() => A.setTheme(THEME_NEXT[theme])}
     >
       <Icon size={16} />
+    </button>
+  );
+}
+
+function LanguageButton() {
+  const lang = useStore((s) => s.lang);
+  return (
+    <button
+      className="btn lang-btn"
+      aria-label={lang === "fr" ? "Langue : français. Switch to English." : "Language: English. Passer en français."}
+      title={lang === "fr" ? "Switch to English" : "Passer en français"}
+      onClick={() => A.setLang(lang === "fr" ? "en" : "fr")}
+    >
+      {lang === "fr" ? "FR" : "EN"}
     </button>
   );
 }
@@ -229,8 +240,8 @@ export function TopBar() {
           <div className="toolbar-group">
             <button
               className="icon-btn"
-              aria-label="Undo (Ctrl+Z)"
-              title="Undo (Ctrl+Z)"
+              aria-label={t("Undo (Ctrl+Z)")}
+              title={t("Undo (Ctrl+Z)")}
               disabled={!doc.past.length}
               onClick={() => A.undo(doc.id)}
             >
@@ -238,8 +249,8 @@ export function TopBar() {
             </button>
             <button
               className="icon-btn"
-              aria-label="Redo (Ctrl+Y)"
-              title="Redo (Ctrl+Y)"
+              aria-label={t("Redo (Ctrl+Y)")}
+              title={t("Redo (Ctrl+Y)")}
               disabled={!doc.future.length}
               onClick={() => A.redo(doc.id)}
             >
@@ -247,15 +258,16 @@ export function TopBar() {
             </button>
           </div>
         )}
+        <LanguageButton />
         <ThemeButton />
         {showDoc && (
           <button
             className="btn btn-primary"
             disabled={!doc.dirty && !!doc.path}
-            title="Save (Ctrl+S). Save a copy: Ctrl+Shift+S"
+            title={t("Save (Ctrl+S). Save a copy: Ctrl+Shift+S")}
             onClick={() => A.save(doc.id)}
           >
-            Save
+            {t("Save")}
           </button>
         )}
       </div>
@@ -271,20 +283,20 @@ function OrganizeControls() {
     <div className="toolbar-group wrap">
       <button className="btn" onClick={() => A.insertFiles(doc.id)}>
         <IconPlus size={15} />
-        Add pages from files
+        {t("Add pages from files")}
       </button>
       <button className="btn" onClick={() => A.openDialogFor("range", doc.id)}>
-        Select pages…
+        {t("Select pages…")}
       </button>
       <label className="muted small slider">
-        Size
+        {t("Size")}
         <input
           type="range"
           min={100}
           max={280}
           step={10}
           value={size}
-          aria-label="Thumbnail size"
+          aria-label={t("Thumbnail size")}
           onChange={(e) => A.setThumbSize(Number(e.target.value))}
         />
       </label>
@@ -297,10 +309,10 @@ function CombineControls() {
     <div className="toolbar-group">
       <button className="btn" onClick={A.combineAddFiles}>
         <IconPlus size={15} />
-        Add files
+        {t("Add files")}
       </button>
       <button className="btn" onClick={A.combineSort}>
-        Sort by name
+        {t("Sort by name")}
       </button>
     </div>
   );

@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 
 export type Mode = "read" | "organize" | "combine";
 export type Theme = "system" | "light" | "dark";
+export type Lang = "en" | "fr";
 
 /** A page as it appears in a document being edited. */
 export interface PageRef {
@@ -23,6 +24,8 @@ export interface SourceMeta {
   /** Width and height of each page at scale 1, with the file's own rotation. */
   sizes: { w: number; h: number }[];
   version: string;
+  /** Set when the file was encrypted and Folium holds an unlocked copy. */
+  unlocked?: "password" | "restrictions";
 }
 
 export interface Doc {
@@ -54,10 +57,27 @@ export interface Toast {
   kind: "info" | "success" | "error";
 }
 
+export interface ChoiceButton {
+  label: string;
+  value: string;
+  primary?: boolean;
+}
+
 export type Dialog =
-  | { type: "unsaved"; docId: string; resolve: (v: "save" | "discard" | "cancel") => void }
-  | { type: "split"; docId: string }
-  | { type: "range"; docId: string }
+  | {
+      type: "choice";
+      title: string;
+      body: string;
+      buttons: ChoiceButton[];
+      resolve: (v: string) => void;
+    }
+  | {
+      type: "password";
+      fileName: string;
+      error: string | null;
+      resolve: (password: string | null) => void;
+    }
+  | { type: "split" | "range" | "compress" | "protect" | "export"; docId: string }
   | null;
 
 export interface State {
@@ -65,10 +85,18 @@ export interface State {
   docs: Doc[];
   activeId: string | null;
   mode: Mode;
-  combine: { items: CombineItem[]; outputName: string; openAfter: boolean; busy: boolean };
+  combine: {
+    items: CombineItem[];
+    outputName: string;
+    openAfter: boolean;
+    keepBookmarks: boolean;
+    fileBookmarks: boolean;
+    busy: boolean;
+  };
   zoom: number;
   thumbSize: number;
   theme: Theme;
+  lang: Lang;
   toasts: Toast[];
   dialog: Dialog;
   busy: string | null;
@@ -77,14 +105,23 @@ export interface State {
   search: { query: string; hits: number[]; pos: number; running: boolean; docId: string | null };
 }
 
-function loadTheme(): Theme {
+function stored(key: string): string | null {
   try {
-    const t = localStorage.getItem("folium.theme");
-    if (t === "light" || t === "dark" || t === "system") return t;
+    return localStorage.getItem(key);
   } catch {
-    /* storage unavailable */
+    return null;
   }
-  return "system";
+}
+
+function loadTheme(): Theme {
+  const t = stored("folium.theme");
+  return t === "light" || t === "dark" || t === "system" ? t : "system";
+}
+
+function loadLang(): Lang {
+  const l = stored("folium.lang");
+  if (l === "en" || l === "fr") return l;
+  return typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("fr") ? "fr" : "en";
 }
 
 let state: State = {
@@ -92,10 +129,18 @@ let state: State = {
   docs: [],
   activeId: null,
   mode: "read",
-  combine: { items: [], outputName: "Combined.pdf", openAfter: true, busy: false },
+  combine: {
+    items: [],
+    outputName: "Combined.pdf",
+    openAfter: true,
+    keepBookmarks: true,
+    fileBookmarks: false,
+    busy: false,
+  },
   zoom: 1,
   thumbSize: 150,
   theme: loadTheme(),
+  lang: loadLang(),
   toasts: [],
   dialog: null,
   busy: null,

@@ -2,7 +2,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import * as A from "../actions";
-import { formatBytes } from "../lib/pdf";
+import { formatBytes, t, tn } from "../i18n";
 import { useStore, type CombineItem } from "../store";
 import { PageImage } from "./PageImage";
 import { IconClose, IconGrip, IconLock, IconUpload } from "./Icons";
@@ -18,7 +18,7 @@ function FileRow({ item, index }: { item: CombineItem; index: number }) {
       className={`file-row${item.included ? " is-on" : ""}${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      <button className="grip" aria-label={`Move ${src.name}`} {...attributes} {...listeners}>
+      <button {...attributes} {...listeners} className="grip" aria-label={t("Move {name}", { name: src.name })}>
         <IconGrip />
       </button>
       <span className="file-num">{index + 1}</span>
@@ -30,16 +30,16 @@ function FileRow({ item, index }: { item: CombineItem; index: number }) {
           {src.name}
         </span>
         <span className="muted small">
-          {pages} {pages === 1 ? "page" : "pages"} · {formatBytes(src.size)}
+          {tn(pages, "{n} page", "{n} pages")} · {formatBytes(src.size)}
         </span>
       </span>
       <input
         type="checkbox"
         checked={item.included}
-        aria-label={`Include ${src.name}`}
+        aria-label={t("Include {name}", { name: src.name })}
         onChange={(e) => A.combineUpdate(item.id, (i) => ({ ...i, included: e.target.checked }))}
       />
-      <button className="icon-btn small-btn" aria-label={`Remove ${src.name}`} onClick={() => A.combineRemove(item.id)}>
+      <button className="icon-btn small-btn" aria-label={t("Remove {name}", { name: src.name })} onClick={() => A.combineRemove(item.id)}>
         <IconClose size={12} />
       </button>
     </div>
@@ -53,10 +53,10 @@ function FileList() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   return (
-    <section className="panel files" aria-label="Files">
+    <section className="panel files" aria-label={t("Files")}>
       <div className="panel-head">
-        <span className="panel-title">Files</span>
-        <span className="muted small">{items.length > 1 ? `${items.length} · drag to reorder` : items.length}</span>
+        <span className="panel-title">{t("Files")}</span>
+        <span className="muted small">{items.length > 1 ? t("{n} · drag to reorder", { n: items.length }) : items.length}</span>
       </div>
       <DndContext
         sensors={sensors}
@@ -74,7 +74,7 @@ function FileList() {
       <button className="drop-zone" onClick={A.combineAddFiles}>
         <IconUpload size={22} />
         <span>
-          Drop PDFs here or <span className="link">browse</span>
+          {t("Drop PDFs here or")} <span className="link">{t("browse")}</span>
         </span>
       </button>
     </section>
@@ -97,12 +97,12 @@ function FilePages({ item, index }: { item: CombineItem; index: number }) {
         <span className="num-badge">{index + 1}</span>
         <span className="strong">{src.name}</span>
         <span className="muted small">
-          {kept === total ? `all ${total} pages` : `${kept} of ${total} pages`}
+          {kept === total ? tn(total, "{n} page", "all {n} pages") : t("{kept} of {n} pages", { kept, n: total })}
         </span>
         <span className="grow" />
         {item.skipped.length > 0 && (
           <button className="btn btn-compact" onClick={() => A.combineUpdate(item.id, (it) => ({ ...it, skipped: [] }))}>
-            Include all
+            {t("Include all")}
           </button>
         )}
       </div>
@@ -114,12 +114,16 @@ function FilePages({ item, index }: { item: CombineItem; index: number }) {
               key={i}
               className={`mini-page${skipped ? " is-skipped" : ""}`}
               aria-pressed={!skipped}
-              aria-label={`Page ${i + 1}: ${skipped ? "skipped" : "included"}. Click to ${skipped ? "include" : "skip"}.`}
+              aria-label={
+                skipped
+                  ? t("Page {n}: skipped. Click to include.", { n: i + 1 })
+                  : t("Page {n}: included. Click to skip.", { n: i + 1 })
+              }
               onClick={() => toggle(i)}
             >
               <span className="mini-frame">
                 <PageImage srcId={item.srcId} index={i} rotation={0} width={84} />
-                {skipped && <span className="skip-overlay">Skipped</span>}
+                {skipped && <span className="skip-overlay">{t("Skipped")}</span>}
               </span>
               <span className="small muted">{i + 1}</span>
             </button>
@@ -137,37 +141,40 @@ function Output() {
   const pages = included.reduce((n, i) => n + (sources[i.srcId]?.sizes.length ?? 0) - i.skipped.length, 0);
   const files = included.filter((i) => (sources[i.srcId]?.sizes.length ?? 0) > i.skipped.length).length;
   return (
-    <aside className="panel output" aria-label="Output">
-      <span className="panel-title">Output</span>
+    <aside className="panel output" aria-label={t("Output")}>
+      <span className="panel-title">{t("Output")}</span>
       <div className="field">
         <label htmlFor="out-name" className="muted small">
-          File name
+          {t("File name")}
         </label>
-        <input
-          id="out-name"
-          className="input"
-          value={c.outputName}
-          onChange={(e) => A.combineSet({ outputName: e.target.value })}
-        />
+        <input id="out-name" className="input" value={c.outputName} onChange={(e) => A.combineSet({ outputName: e.target.value })} />
       </div>
       <div className="readout">
         <span className="readout-num">{pages}</span>
-        <span className="muted small">
-          {pages === 1 ? "page" : "pages"} from {files} {files === 1 ? "file" : "files"}
-        </span>
+        <span className="muted small">{tn(pages, "page", "pages")} · {tn(files, "from {n} file", "from {n} files")}</span>
       </div>
-      <label className="check">
-        <input type="checkbox" checked={c.openAfter} onChange={(e) => A.combineSet({ openAfter: e.target.checked })} />
-        Open the result when done
-      </label>
-      <p className="muted small">Click a page to skip it. Drag files on the left to change their order.</p>
+      <div className="checks">
+        <label className="check">
+          <input type="checkbox" checked={c.keepBookmarks} onChange={(e) => A.combineSet({ keepBookmarks: e.target.checked })} />
+          {t("Keep existing bookmarks")}
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={c.fileBookmarks} onChange={(e) => A.combineSet({ fileBookmarks: e.target.checked })} />
+          {t("Add a bookmark for each file")}
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={c.openAfter} onChange={(e) => A.combineSet({ openAfter: e.target.checked })} />
+          {t("Open the result when done")}
+        </label>
+      </div>
+      <p className="muted small">{t("Click a page to skip it. Drag files on the left to change their order.")}</p>
       <div className="grow" />
       <button className="btn btn-primary btn-large" disabled={!pages || c.busy} onClick={A.runCombine}>
-        {c.busy ? "Combining…" : `Combine ${pages} ${pages === 1 ? "page" : "pages"}`}
+        {c.busy ? t("Combining…") : tn(pages, "Combine {n} page", "Combine {n} pages")}
       </button>
       <p className="offline center">
         <IconLock size={12} />
-        Processed on this computer
+        {t("Processed on this computer")}
       </p>
     </aside>
   );
@@ -179,14 +186,14 @@ export function CombineView() {
   return (
     <div className="workspace">
       <FileList />
-      <main className="panel combine-pages" aria-label="Pages to combine">
+      <main className="panel combine-pages" aria-label={t("Pages to combine")}>
         {included.length === 0 ? (
           <div className="empty-hint">
             <IconUpload size={28} />
-            <p className="strong">Add the PDFs you want to combine</p>
-            <p className="muted">Drop them anywhere in this window, or use Add files.</p>
+            <p className="strong">{t("Add the PDFs you want to combine")}</p>
+            <p className="muted">{t("Drop them anywhere in this window, or use Add files.")}</p>
             <button className="btn btn-primary" onClick={A.combineAddFiles}>
-              Add files
+              {t("Add files")}
             </button>
           </div>
         ) : (

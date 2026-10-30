@@ -3,6 +3,7 @@
 // development) it falls back to file inputs and downloads.
 
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "../i18n";
 
 export const isDesktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -12,22 +13,32 @@ export interface PickedFile {
   bytes: Uint8Array;
 }
 
-const PDF_FILTER = [{ name: "PDF documents", extensions: ["pdf"] }];
+const pdfFilter = () => [{ name: t("PDF documents"), extensions: ["pdf"] }];
 
 export function baseName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
+/** Error text from Rust or the browser, as a string. */
+export function errorText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
+
 export async function readPath(path: string): Promise<PickedFile> {
-  const buf = await invoke<ArrayBuffer>("read_file", { path });
-  return { name: baseName(path), path, bytes: new Uint8Array(buf) };
+  try {
+    const buf = await invoke<ArrayBuffer>("read_file", { path });
+    return { name: baseName(path), path, bytes: new Uint8Array(buf) };
+  } catch (e) {
+    throw new Error(t("Could not open “{name}”: {detail}", { name: baseName(path), detail: errorText(e) }));
+  }
 }
 
 /** Asks for one or more PDFs and reads them. */
 export async function pickPdfs(multiple = true): Promise<PickedFile[]> {
   if (isDesktop) {
     const { open } = await import("@tauri-apps/plugin-dialog");
-    const res = await open({ multiple, filters: PDF_FILTER });
+    const res = await open({ multiple, filters: pdfFilter() });
     if (!res) return [];
     const paths = Array.isArray(res) ? res : [res];
     return Promise.all(paths.map(readPath));
@@ -53,7 +64,7 @@ export async function fileToPicked(f: File): Promise<PickedFile> {
 export async function pickSavePath(defaultName: string): Promise<string | null> {
   if (isDesktop) {
     const { save } = await import("@tauri-apps/plugin-dialog");
-    return save({ defaultPath: defaultName, filters: PDF_FILTER });
+    return save({ defaultPath: defaultName, filters: pdfFilter() });
   }
   return defaultName;
 }
@@ -74,12 +85,21 @@ export function joinPath(folder: string, name: string): string {
 }
 
 /** Writes bytes to a path (desktop) or downloads them (browser). */
-export async function writePath(path: string, bytes: Uint8Array): Promise<void> {
+export async function writePath(path: string, bytes: Uint8Array, mime = "application/pdf"): Promise<void> {
   if (isDesktop) {
-    await invoke("write_file", bytes, { headers: { "x-path": encodeURIComponent(path) } });
+    try {
+      await invoke("write_file", bytes, { headers: { "x-path": encodeURIComponent(path) } });
+    } catch (e) {
+      throw new Error(
+        t("Could not save “{name}”. Is it open in another program? ({detail})", {
+          name: baseName(path),
+          detail: errorText(e),
+        }),
+      );
+    }
     return;
   }
-  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+  const blob = new Blob([bytes as BlobPart], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -96,6 +116,49 @@ export async function startupFiles(): Promise<string[]> {
     return [];
   }
 }
+
+// ------------------------------------------------------------- qpdf (Rust)
+
+/** True if the file is encrypted. Always false in the browser build. */
+export async function pdfIsEncrypted(bytes: Uint8Array): Promise<boolean> {
+  if (!isDesktop) return false;
+  return invoke<boolean>("pdf_is_encrypted", bytes);
+}
+
+/** Returns an unencrypted copy. Rejects with "wrong-password" if needed. */
+export async function pdfUnlock(bytes: Uint8Array, password: string): Promise<Uint8Array> {
+  const buf = await invoke<ArrayBuffer>("pdf_unlock", bytes, {
+    headers: { "x-password": encodeURIComponent(password) },
+  });
+  return new Uint8Array(buf);
+}
+
+export interface ProtectOptions {
+  password: string;
+  allowPrint: boolean;
+  allowCopy: boolean;
+  allowEdit: boolean;
+}
+
+export async function pdfProtect(bytes: Uint8Array, o: ProtectOptions): Promise<Uint8Array> {
+  const buf = await invoke<ArrayBuffer>("pdf_protect", bytes, {
+    headers: {
+      "x-password": encodeURIComponent(o.password),
+      "x-allow-print": o.allowPrint ? "1" : "0",
+      "x-allow-copy": o.allowCopy ? "1" : "0",
+      "x-allow-edit": o.allowEdit ? "1" : "0",
+    },
+  });
+  return new Uint8Array(buf);
+}
+
+/** Lossless optimisation. In the browser build, returns the input unchanged. */
+export async function pdfOptimize(bytes: Uint8Array): Promise<Uint8Array> {
+  if (!isDesktop) return bytes;
+  return new Uint8Array(await invoke<ArrayBuffer>("pdf_optimize", bytes));
+}
+
+// ----------------------------------------------------------------- window
 
 /** Calls `onDrop` with PDF paths dropped onto the window from the file explorer. */
 export async function onFileDrop(

@@ -2,15 +2,20 @@
 
 A free, ad-free PDF tool that works entirely offline. No account, no uploads, no tracking.
 
-**Status:** early test version (0.1). Windows first; macOS, Linux, iPhone and Android later.
+**Status:** test version 0.2. Windows first; macOS, Linux, iPhone and Android later. Available in English and French.
 
 ## What it does
 
-- **Read** — continuous scrolling, zoom, search, jump to a page, light and dark themes
+- **Read** — continuous scrolling, zoom, search, jump to a page, bookmarks panel, light and dark themes
 - **Organize** — page grid with drag-and-drop reordering, multi-select (Ctrl / Shift), rotate, delete, duplicate, undo and redo
 - **Extract** — save selected pages as a new PDF
 - **Split** — every N pages, or by ranges such as `1-3, 4-10, 11-`
-- **Combine** — join several PDFs, choose their order, skip individual pages
+- **Combine** — join several PDFs, choose their order, skip individual pages, add a bookmark per file
+- **Compress** — three levels; shows the new size before you save
+- **Passwords** — open protected PDFs, protect a copy with AES-256 and choose what readers may do (print, copy, edit); files with restrictions become editable
+- **Export as images** — PNG or JPEG at 72, 150 or 300 DPI
+- **Bookmarks are kept** when you save, extract, split or combine, and follow pages you move
+- English and French interface
 - Open several files in tabs, drop PDFs on the window, or set Folium as the app for PDFs
 
 ## Download
@@ -37,15 +42,15 @@ Until the installer is code-signed, Windows SmartScreen shows "Windows protected
 | Next / previous tab | Ctrl Tab / Ctrl Shift Tab |
 | Close tab | Ctrl W |
 
-## Known limits of 0.1
+## Known limits of 0.2
 
-- Password-protected PDFs can't be opened yet.
-- Saving rebuilds the file page by page, so bookmarks (the outline) and fillable form fields are not kept yet.
-- English only for now; French is planned.
+- Saving rebuilds the file page by page, so fillable form fields are not kept yet.
+- Compression re-encodes photos only; it does not touch text, fonts or drawings.
+- When a password-protected file is saved with "Keep the password", reader permissions are reset to "everything allowed".
 
 ## Roadmap
 
-- **1.0** — compress, password protect and unlock, export pages as images, keep bookmarks
+- **1.0** — polish from testing, code signing, public release
 - **1.1** — highlight and annotate, fill in forms
 - **1.2** — sign, OCR for scanned pages, images to PDF
 
@@ -57,13 +62,16 @@ Until the installer is code-signed, Windows SmartScreen shows "Windows protected
 | Interface | React + TypeScript, built with Vite |
 | Displaying PDFs | [PDF.js](https://mozilla.github.io/pdf.js/) |
 | Editing PDFs | [pdf-lib](https://pdf-lib.js.org) |
+| Passwords and optimisation | [qpdf](https://qpdf.sourceforge.io) (built in, via the `qpdf` Rust crate) |
 | Drag and drop | [dnd-kit](https://dndkit.com) |
 
-Everything runs on your computer. The native side only reads and writes the files you choose.
+Everything runs on your computer. The native side reads and writes the files you choose and runs qpdf for passwords and optimisation.
+
+Translations live in `src/locales/`. English text is the key; `npm run i18n:check` lists any missing translations.
 
 ## Building it yourself
 
-Requirements: Node.js 22, Rust (stable) and, on Windows, the Visual Studio C++ Build Tools.
+Requirements: Node.js 22, Rust (stable) and a C++ compiler (on Windows, the Visual Studio C++ Build Tools), which builds the bundled qpdf.
 
 ```sh
 npm install

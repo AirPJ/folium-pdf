@@ -8,6 +8,7 @@ import { ReadView } from "./components/ReadView";
 import { TopBar } from "./components/TopBar";
 import { Welcome } from "./components/Welcome";
 import { fileToPicked, isDesktop, onCloseRequested, onFileDrop, setWindowTitle, startupFiles } from "./lib/platform";
+import { t } from "./i18n";
 import { getState, useActiveDoc, useStore } from "./store";
 
 function useTheme() {
@@ -79,7 +80,12 @@ export function App() {
   const [hover, setHover] = useState(false);
 
   // Window title shows the file and whether it has unsaved changes.
-  const title = mode === "combine" ? "Combine — Folium PDF" : doc ? `${doc.dirty ? "• " : ""}${doc.name} — Folium PDF` : "Folium PDF";
+  const title =
+    mode === "combine"
+      ? `${t("Combine")} — Folium PDF`
+      : doc
+        ? `${doc.dirty ? "• " : ""}${doc.name} — Folium PDF`
+        : "Folium PDF";
   useEffect(() => {
     setWindowTitle(title);
   }, [title]);
@@ -129,7 +135,7 @@ export function App() {
       {hover && (
         <div className="drop-overlay" aria-hidden="true">
           <IconUpload size={32} />
-          <span>{mode === "combine" ? "Drop to add to Combine" : "Drop to open"}</span>
+          <span>{mode === "combine" ? t("Drop to add to Combine") : t("Drop to open")}</span>
         </div>
       )}
       <Dialogs />

@@ -13,6 +13,7 @@ import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useS
 import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
 import * as A from "../actions";
+import { t, tn } from "../i18n";
 import { useStore, type Doc, type PageRef } from "../store";
 import { PageImage } from "./PageImage";
 import {
@@ -38,7 +39,7 @@ function Tile({ doc, page, index, width }: { doc: Doc; page: PageRef; index: num
         {...attributes}
         {...listeners}
         className="tile-hit"
-        aria-label={`Page ${index + 1}${selected ? ", selected" : ""}. Drag to move, double-click to read.`}
+        aria-label={`${selected ? t("Page {n}, selected", { n: index + 1 }) : t("Page {n}", { n: index + 1 })}. ${t("Drag to move, double-click to read.")}`}
         aria-pressed={selected}
         onClick={(e) => {
           e.stopPropagation();
@@ -73,29 +74,29 @@ function ActionBar({ doc }: { doc: Doc }) {
   const n = doc.selection.length;
   if (!n) return null;
   return (
-    <div className="action-bar" role="toolbar" aria-label="Selected pages" onClick={(e) => e.stopPropagation()}>
-      <span className="action-count">{n === 1 ? "1 page" : `${n} pages`}</span>
+    <div className="action-bar" role="toolbar" aria-label={t("Selected pages")} onClick={(e) => e.stopPropagation()}>
+      <span className="action-count">{tn(n, "{n} page", "{n} pages")}</span>
       <div className="vsep" />
       <button onClick={() => A.extract(doc.id)}>
         <IconExtract size={16} />
-        Extract<kbd>Ctrl E</kbd>
+        {t("Extract")}<kbd>Ctrl E</kbd>
       </button>
       <button onClick={() => A.duplicatePages(doc.id)}>
         <IconDuplicate size={16} />
-        Duplicate<kbd>Ctrl D</kbd>
+        {t("Duplicate")}<kbd>Ctrl D</kbd>
       </button>
-      <button onClick={() => A.rotate(doc.id, -90)} aria-label="Rotate left (Shift+R)" title="Rotate left (Shift+R)">
+      <button onClick={() => A.rotate(doc.id, -90)} aria-label={t("Rotate left (Shift+R)")} title={t("Rotate left (Shift+R)")}>
         <IconRotateLeft size={16} />
       </button>
-      <button onClick={() => A.rotate(doc.id, 90)} aria-label="Rotate right (R)" title="Rotate right (R)">
+      <button onClick={() => A.rotate(doc.id, 90)} aria-label={t("Rotate right (R)")} title={t("Rotate right (R)")}>
         <IconRotateRight size={16} />
       </button>
       <button className="danger" onClick={() => A.deletePages(doc.id)}>
         <IconTrash size={16} />
-        Delete<kbd>Del</kbd>
+        {t("Delete")}<kbd>{t("Del")}</kbd>
       </button>
       <div className="vsep" />
-      <button aria-label="Clear selection (Esc)" title="Clear selection (Esc)" onClick={() => A.setSelection(doc.id, [])}>
+      <button aria-label={t("Clear selection (Esc)")} title={t("Clear selection (Esc)")} onClick={() => A.setSelection(doc.id, [])}>
         <IconClose size={14} />
       </button>
     </div>
@@ -121,10 +122,10 @@ export function OrganizeView({ doc }: { doc: Doc }) {
 
   return (
     <div className="workspace">
-      <main className="panel organizer" aria-label="Pages">
+      <main className="panel organizer" aria-label={t("Pages")}>
         <div className="organizer-scroll" onClick={() => A.setSelection(doc.id, [])}>
         <p className="hint muted small">
-          Click to select · Ctrl or Shift for several · drag to reorder · double-click to read
+          {t("Click to select · Ctrl or Shift for several · drag to reorder · double-click to read")}
         </p>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onStart} onDragEnd={onEnd} onDragCancel={() => setDragging(null)}>
           <SortableContext items={doc.pages.map((p) => p.key)} strategy={rectSortingStrategy}>

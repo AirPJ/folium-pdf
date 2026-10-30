@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check translations
+        run: npm run i18n:check
+
       - name: Build the app and installer
         run: npx tauri build --bundles nsis
 

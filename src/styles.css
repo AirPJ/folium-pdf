@@ -1247,3 +1247,196 @@ p {
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------- 1.0 additions */
+
+.block {
+  display: block;
+}
+
+.lang-btn {
+  width: 40px;
+  padding: 0;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* Bookmarks next to the page thumbnails */
+.rail.wide {
+  width: 240px;
+}
+.rail-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 10px 10px 6px;
+  padding: 3px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.rail-tabs button {
+  flex: 1;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.rail-tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+.outline,
+.outline ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.outline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 6px 16px;
+}
+.outline-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.outline-toggle {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.12s;
+}
+.outline-toggle.is-open {
+  transform: none;
+}
+.outline-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 13px;
+}
+.outline-link:not(:disabled):hover {
+  background: var(--raised);
+}
+.outline-link.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.notice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-text);
+}
+
+/* Dialogs */
+.modal.wide {
+  max-width: 520px;
+}
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+select.input {
+  appearance: auto;
+  cursor: pointer;
+}
+.two-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.password-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.password-box .input {
+  flex: 1;
+}
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.option.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.option input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.progress-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.result-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+.small-num {
+  font-size: 28px;
+}
