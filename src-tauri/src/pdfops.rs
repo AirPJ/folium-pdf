@@ -48,7 +48,7 @@ pub struct Protection {
 /// ignores them, which is the normal behaviour for PDF permissions.
 pub fn protect(data: &[u8], p: &Protection) -> Result<Vec<u8>, String> {
     let pdf = QPdf::read_from_memory(data).map_err(code)?;
-    let owner = random_password();
+    let owner = random_password()?;
     let params = EncryptionParamsR6 {
         user_password: p.open_password.clone(),
         owner_password: owner,
@@ -83,17 +83,13 @@ pub fn optimize(data: &[u8]) -> Result<Vec<u8>, String> {
         .map_err(code)
 }
 
-fn random_password() -> String {
-    // 32 random bytes from the OS, hex-encoded.
+/// 32 random bytes from the OS, hex-encoded. Fails rather than fall back to
+/// a guessable value: a predictable owner password would let anyone lift the
+/// restrictions.
+fn random_password() -> Result<String, String> {
     let mut buf = [0u8; 32];
-    if getrandom::fill(&mut buf).is_err() {
-        let t = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        buf[..16].copy_from_slice(&t.to_le_bytes());
-    }
-    buf.iter().map(|b| format!("{b:02x}")).collect()
+    getrandom::fill(&mut buf).map_err(|e| format!("failed: no secure random numbers ({e})"))?;
+    Ok(buf.iter().map(|b| format!("{b:02x}")).collect())
 }
 
 #[cfg(test)]

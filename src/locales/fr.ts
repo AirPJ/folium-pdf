@@ -296,4 +296,8 @@ export const fr: Record<string, string> = {
   "Preparing page {done} of {total} for printing…": "Préparation de la page {done} sur {total} pour l'impression…",
   "Print (Ctrl+P)": "Imprimer (Ctrl+P)",
   "Print…": "Imprimer…",
+  "Folium only opens PDF files and only saves PDF, PNG or JPEG files.": "Folium n'ouvre que des fichiers PDF et n'enregistre que des fichiers PDF, PNG ou JPEG.",
+  "For files on a network drive, use Open (Ctrl+O) and choose the file.": "Pour un fichier sur un lecteur réseau, utilisez Ouvrir (Ctrl+O) et choisissez le fichier.",
+  "Folium only saves to a file or folder you chose. Use “Save a copy as…”.": "Folium n'enregistre que dans un fichier ou un dossier que vous avez choisi. Utilisez « Enregistrer une copie sous… ».",
+  "Could not save “{name}”: {detail}": "Impossible d'enregistrer « {name} » : {detail}",
 };

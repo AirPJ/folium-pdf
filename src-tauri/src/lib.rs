@@ -4,12 +4,16 @@
 //! layer reads and writes files, and uses qpdf for passwords and lossless
 //! optimisation. Documents never leave the computer.
 
+mod access;
 mod pdfops;
+
+use access::Access;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, State, WebviewWindow};
+use tauri_plugin_dialog::DialogExt;
 
 fn raw_body(request: &Request<'_>) -> Result<Vec<u8>, String> {
     match request.body() {
@@ -68,11 +72,16 @@ async fn pdf_optimize(request: Request<'_>) -> Result<Response, String> {
     blocking(move || pdfops::optimize(&data)).await.map(Response::new)
 }
 
-/// Reads a file and returns its raw bytes (sent to the interface as binary,
-/// not JSON, so large PDFs stay fast).
+/// Reads a PDF and returns its raw bytes (sent to the interface as binary,
+/// not JSON, so large PDFs stay fast). See `access.rs` for what is allowed.
 #[tauri::command]
-fn read_file(path: String) -> Result<Response, String> {
-    std::fs::read(&path).map(Response::new).map_err(|e| e.to_string())
+fn read_file(path: String, access: State<'_, Access>) -> Result<Response, String> {
+    let path = PathBuf::from(path);
+    access.check_read(&path)?;
+    let data = std::fs::read(&path).map_err(|e| e.to_string())?;
+    // The user opened it: saving it in place is allowed.
+    access.grant_file(&path);
+    Ok(Response::new(data))
 }
 
 /// Writes raw bytes to the path given in the `x-path` header.
@@ -80,10 +89,11 @@ fn read_file(path: String) -> Result<Response, String> {
 /// The data is first written to a temporary file next to the target and then
 /// moved into place, so a crash or a full disk never leaves a half-written PDF.
 #[tauri::command]
-fn write_file(request: Request<'_>) -> Result<(), String> {
+fn write_file(request: Request<'_>, access: State<'_, Access>) -> Result<(), String> {
     let data = raw_body(&request)?;
     let path = header(&request, "x-path").ok_or("Internal error: missing file path")?;
     let target = PathBuf::from(&path);
+    access.check_write(&target)?;
 
     let mut tmp = target.clone().into_os_string();
     tmp.push(".folium-tmp");
@@ -94,6 +104,82 @@ fn write_file(request: Request<'_>) -> Result<(), String> {
         let _ = std::fs::remove_file(&tmp);
         e.to_string()
     })
+}
+
+// ---------------------------------------------------------------- dialogs
+//
+// File dialogs run here rather than in the interface, so the native side
+// knows which files and folders the user actually chose.
+
+async fn off_main<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
+}
+
+/// Asks for one or more PDFs to open. `filter` is the translated file-type label.
+#[tauri::command]
+async fn dialog_open(
+    window: WebviewWindow,
+    access: State<'_, Access>,
+    filter: String,
+    multiple: bool,
+) -> Result<Vec<String>, String> {
+    let w = window.clone();
+    let picked = off_main(move || {
+        let d = w.dialog().file().set_parent(&w).add_filter(filter, &["pdf"]);
+        if multiple {
+            d.blocking_pick_files().unwrap_or_default()
+        } else {
+            d.blocking_pick_file().into_iter().collect()
+        }
+    })
+    .await?;
+    let paths: Vec<PathBuf> = picked.into_iter().filter_map(|f| f.into_path().ok()).collect();
+    for p in &paths {
+        access.grant_file(p);
+    }
+    Ok(paths.iter().map(|p| p.to_string_lossy().into_owned()).collect())
+}
+
+/// Asks where to save a PDF. Returns None if cancelled.
+#[tauri::command]
+async fn dialog_save(
+    window: WebviewWindow,
+    access: State<'_, Access>,
+    filter: String,
+    default_name: String,
+) -> Result<Option<String>, String> {
+    let w = window.clone();
+    let picked = off_main(move || {
+        w.dialog()
+            .file()
+            .set_parent(&w)
+            .add_filter(filter, &["pdf"])
+            .set_file_name(default_name)
+            .blocking_save_file()
+    })
+    .await?;
+    let Some(mut path) = picked.and_then(|f| f.into_path().ok()) else {
+        return Ok(None);
+    };
+    if !path.extension().is_some_and(|e| e.eq_ignore_ascii_case("pdf")) {
+        let mut s = path.into_os_string();
+        s.push(".pdf");
+        path = PathBuf::from(s);
+    }
+    access.grant_file(&path);
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// Asks for a folder to save several files into. Returns None if cancelled.
+#[tauri::command]
+async fn dialog_folder(window: WebviewWindow, access: State<'_, Access>) -> Result<Option<String>, String> {
+    let w = window.clone();
+    let picked = off_main(move || w.dialog().file().set_parent(&w).blocking_pick_folder()).await?;
+    let Some(path) = picked.and_then(|f| f.into_path().ok()) else {
+        return Ok(None);
+    };
+    access.grant_folder(&path);
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 /// PDF files waiting to be opened: those passed at launch, then those sent
@@ -136,6 +222,10 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
         let files = pdf_args(argv.into_iter().skip(1), Path::new(&cwd));
         if !files.is_empty() {
+            let access = app.state::<Access>();
+            for f in &files {
+                access.grant_file(Path::new(f));
+            }
             let queue = app.state::<OpenQueue>();
             queue.0.lock().unwrap_or_else(|e| e.into_inner()).extend(files);
             let _ = app.emit("open-requests", ());
@@ -147,8 +237,23 @@ pub fn run() {
         }
     }));
 
+    let access = Access::default();
+    for f in &at_launch {
+        access.grant_file(Path::new(f));
+    }
+
     builder
+        .manage(access)
         .manage(OpenQueue(Mutex::new(at_launch)))
+        // Files dropped on the window from the file explorer.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                let access = window.state::<Access>();
+                for p in paths {
+                    access.grant_file(p);
+                }
+            }
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
@@ -162,6 +267,9 @@ pub fn run() {
             read_file,
             write_file,
             take_open_requests,
+            dialog_open,
+            dialog_save,
+            dialog_folder,
             pdf_is_encrypted,
             pdf_unlock,
             pdf_protect,

@@ -13,7 +13,6 @@ export interface PickedFile {
   bytes: Uint8Array;
 }
 
-const pdfFilter = () => [{ name: t("PDF documents"), extensions: ["pdf"] }];
 
 export function baseName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
@@ -25,22 +24,36 @@ export function errorText(e: unknown): string {
   return String(e);
 }
 
+/** Readable text for a refusal from the native side's file rules (access.rs), or null. */
+function deniedText(e: unknown): string | null {
+  switch (errorText(e)) {
+    case "denied:type":
+      return t("Folium only opens PDF files and only saves PDF, PNG or JPEG files.");
+    case "denied:network":
+      return t("For files on a network drive, use Open (Ctrl+O) and choose the file.");
+    case "denied:place":
+      return t("Folium only saves to a file or folder you chose. Use “Save a copy as…”.");
+    default:
+      return null;
+  }
+}
+
 export async function readPath(path: string): Promise<PickedFile> {
   try {
     const buf = await invoke<ArrayBuffer>("read_file", { path });
     return { name: baseName(path), path, bytes: new Uint8Array(buf) };
   } catch (e) {
-    throw new Error(t("Could not open “{name}”: {detail}", { name: baseName(path), detail: errorText(e) }));
+    throw new Error(
+      t("Could not open “{name}”: {detail}", { name: baseName(path), detail: deniedText(e) ?? errorText(e) }),
+    );
   }
 }
 
 /** Asks for one or more PDFs and reads them. */
 export async function pickPdfs(multiple = true): Promise<PickedFile[]> {
   if (isDesktop) {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const res = await open({ multiple, filters: pdfFilter() });
-    if (!res) return [];
-    const paths = Array.isArray(res) ? res : [res];
+    // Dialogs run on the native side, which then allows these files (see access.rs).
+    const paths = await invoke<string[]>("dialog_open", { filter: t("PDF documents"), multiple });
     return Promise.all(paths.map(readPath));
   }
   return new Promise((resolve) => {
@@ -63,17 +76,14 @@ export async function fileToPicked(f: File): Promise<PickedFile> {
 /** Asks where to save. Returns null if cancelled. In the browser, returns the name. */
 export async function pickSavePath(defaultName: string): Promise<string | null> {
   if (isDesktop) {
-    const { save } = await import("@tauri-apps/plugin-dialog");
-    return save({ defaultPath: defaultName, filters: pdfFilter() });
+    return invoke<string | null>("dialog_save", { filter: t("PDF documents"), defaultName });
   }
   return defaultName;
 }
 
 export async function pickFolder(): Promise<string | null> {
   if (isDesktop) {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const res = await open({ directory: true, multiple: false });
-    return typeof res === "string" ? res : null;
+    return invoke<string | null>("dialog_folder");
   }
   return "";
 }
@@ -90,6 +100,8 @@ export async function writePath(path: string, bytes: Uint8Array, mime = "applica
     try {
       await invoke("write_file", bytes, { headers: { "x-path": encodeURIComponent(path) } });
     } catch (e) {
+      const denied = deniedText(e);
+      if (denied) throw new Error(t("Could not save “{name}”: {detail}", { name: baseName(path), detail: denied }));
       throw new Error(
         t("Could not save “{name}”. Is it open in another program? ({detail})", {
           name: baseName(path),

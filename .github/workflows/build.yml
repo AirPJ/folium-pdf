@@ -8,6 +8,16 @@
 # Updates are signed with the key in the TAURI_SIGNING_PRIVATE_KEY secret
 # (and its password, TAURI_SIGNING_PRIVATE_KEY_PASSWORD). Without them the
 # installer is still built, but no update is published.
+#
+# Security (see the audit in the project docs):
+# - The signing key is given to ONE step only, "Sign the installer", which
+#   runs nothing but the Tauri CLI. Installing dependencies and building
+#   never see it, so a compromised npm package or build script cannot
+#   steal it.
+# - Dependencies are installed without running their install scripts.
+# - Third-party actions are pinned to exact commits (the comment gives the
+#   version); Dependabot proposes updates.
+# - The workflow token is read-only except in the job that publishes.
 
 name: Build
 
@@ -19,7 +29,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ github.ref }}
@@ -28,25 +38,33 @@ concurrency:
 jobs:
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: write # publish the test build and draft releases
     env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      # Only whether a key exists ("yes"/"no"), never the key itself.
+      SIGNING: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && 'yes' || 'no' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable branch
+        with:
+          toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri -> target
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (without running their install scripts)
+        run: |
+          npm ci --ignore-scripts
+          node scripts/copy-pdfjs-assets.mjs
 
       - name: Check translations
         run: npm run i18n:check
@@ -55,15 +73,21 @@ jobs:
         id: version
         run: node scripts/ci-version.mjs
 
+      # Built without update files: the installer is signed in the next step.
       - name: Build the app and installer
         shell: bash
+        run: npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Sign the installer (update signature)
+        if: env.SIGNING == 'yes' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            npx tauri build --bundles nsis
-          else
-            echo "::warning::No signing key secret: building without update files."
-            npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
-          fi
+          for f in src-tauri/target/release/bundle/nsis/*-setup.exe; do
+            npx --no-install tauri signer sign "$f"
+          done
 
       - name: Publish test build (main branch)
         if: github.ref == 'refs/heads/main'
@@ -74,10 +98,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p out
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+          if [ "$SIGNING" = "yes" ]; then
             node scripts/ci-update-manifest.mjs "$VERSION" \
               "https://github.com/${GITHUB_REPOSITORY}/releases/download/test-build" out
           else
+            echo "::warning::No signing key secret: publishing without update files."
             cp src-tauri/target/release/bundle/nsis/*-setup.exe "out/Folium-PDF_${VERSION}_x64-setup.exe"
             printf '%s\n' "$RELEASE_NOTES" | grep -viE '^(Co-Authored-By|Claude-Session):' > release-notes.md
           fi
@@ -89,7 +114,53 @@ jobs:
 
       - name: Publish release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
           files: src-tauri/target/release/bundle/nsis/*.exe
+
+  # Known vulnerabilities in dependencies, and the Rust unit tests.
+  # Runs alongside the build; a failure here does not stop publishing, but
+  # shows as a failed check on the commit.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable branch
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri -> target
+
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        working-directory: src-tauri
+        run: cargo audit
+
+      - name: Build the interface (the Rust side embeds it)
+        run: |
+          npm ci --ignore-scripts
+          node scripts/copy-pdfjs-assets.mjs
+          npm run build
+
+      - name: Rust unit tests
+        working-directory: src-tauri
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+          cargo test
