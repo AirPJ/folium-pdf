@@ -23,7 +23,7 @@ const notes = (process.env.RELEASE_NOTES ?? "")
   .split("\n")
   .filter((l) => !/^(Co-Authored-By|Claude-Session|Signed-off-by):/i.test(l.trim()))
   .join("\n")
-  .trim();
+  .trim() || "Improvements and fixes.";
 writeFileSync("release-notes.md", notes + "\n");
 const manifest = {
   version,
