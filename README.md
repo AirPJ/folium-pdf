@@ -15,7 +15,7 @@ A free, ad-free PDF tool that works entirely offline. No account, no uploads, no
 
 ## Download
 
-Installers are built automatically for every change. Open the [Actions tab](../../actions), pick the latest successful **Build** run and download **Folium-PDF-Windows**. Official releases will appear under [Releases](../../releases).
+Installers are built automatically for every change. Go to [Releases](../../releases), open **Test build** and download the `.exe` file. Official versions will be published there too.
 
 Until the installer is code-signed, Windows SmartScreen shows "Windows protected your PC". Click **More info → Run anyway**.
 
