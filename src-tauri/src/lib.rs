@@ -202,6 +202,21 @@ fn pdf_args(args: impl IntoIterator<Item = String>, cwd: &Path) -> Vec<String> {
         .collect()
 }
 
+/// The pages Folium itself serves: `http://tauri.localhost` on Windows,
+/// `tauri://localhost` on the other systems, and the Vite server during
+/// development. The window may only show these: if a booby-trapped PDF ever
+/// managed to run script, it could otherwise send data away simply by
+/// loading a website's address (the Content Security Policy does not cover
+/// page changes).
+fn is_app_page(url: &tauri::Url, dev: bool) -> bool {
+    match (url.scheme(), url.host_str()) {
+        ("tauri", Some("localhost")) => true,
+        ("http" | "https", Some("tauri.localhost")) => true,
+        ("http", Some("localhost")) => dev,
+        _ => false,
+    }
+}
+
 /// Returns (and forgets) the files waiting to be opened.
 #[tauri::command]
 fn take_open_requests(queue: tauri::State<'_, OpenQueue>) -> Vec<String> {
@@ -257,6 +272,22 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            // The window is created here rather than from tauri.conf.json
+            // ("create": false there) so it can be kept on Folium's own
+            // pages, and so script can never open other windows.
+            let config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|w| w.label == "main")
+                .ok_or("missing main window in tauri.conf.json")?
+                .clone();
+            tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
+                .on_navigation(|url| is_app_page(url, cfg!(dev)))
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+                .build()?;
+
             // Updates: signed builds published on GitHub (see tauri.conf.json).
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -277,4 +308,33 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Folium PDF");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_app_page;
+
+    fn ok(url: &str, dev: bool) -> bool {
+        is_app_page(&url.parse().unwrap(), dev)
+    }
+
+    #[test]
+    fn window_stays_on_folium_pages() {
+        assert!(ok("http://tauri.localhost/", false), "Windows");
+        assert!(ok("http://tauri.localhost/index.html#x", false));
+        assert!(ok("tauri://localhost/", false), "macOS / Linux");
+        assert!(ok("http://localhost:1420/", true), "development");
+        for bad in [
+            "http://localhost:1420/",
+            "https://example.com/?data=secret",
+            "http://tauri.localhost.example.com/",
+            "http://example.com/tauri.localhost",
+            "file:///C:/Users/me/Documents/a.pdf",
+            "data:text/html,hello",
+            "about:blank",
+            "javascript:alert(1)",
+        ] {
+            assert!(!ok(bad, false), "{bad}");
+        }
+    }
 }

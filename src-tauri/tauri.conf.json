@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Folium PDF",
         "width": 1320,
         "height": 860,
