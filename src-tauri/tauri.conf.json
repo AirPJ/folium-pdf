@@ -79,7 +79,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUwOTMwNjE2QjY2N0Y5RTUKUldUbCtXZTJGZ2FUNE8ycnFZTisyUmJUZ3dEaGI0V2FNK2VwZTNGbVFvTUZ6ODc3OHN3M1hmQnMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZGMjNDRDYxOTFDQzk5QzkKUldUSm1jeVJZYzBqYjRYU3pkWnFKTXhmT2lzS1MxbXQ5Tm1wME05MDNtWjNmQjBpMUJWdFpQYWYK",
       "endpoints": [
         "https://github.com/AirPJ/folium-pdf/releases/download/test-build/latest.json"
       ],
