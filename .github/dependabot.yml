@@ -10,6 +10,16 @@ updates:
       npm:
         patterns: ["*"]
 
+  # The Tauri CLI used by the job that signs updates (keep it on the same
+  # version as the app's @tauri-apps/cli).
+  - package-ecosystem: npm
+    directory: /scripts/signer
+    schedule:
+      interval: weekly
+    groups:
+      signer:
+        patterns: ["*"]
+
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:

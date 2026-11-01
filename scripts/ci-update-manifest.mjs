@@ -1,13 +1,13 @@
 // After a signed build: gives the installer a web-friendly name and writes
 // latest.json, the file the in-app updater reads.
-// Usage: node scripts/ci-update-manifest.mjs <version> <release download base URL> <out dir>
-import { readdirSync, readFileSync, renameSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
+// Usage: node scripts/ci-update-manifest.mjs <version> <release download base URL> <out dir> <installer dir>
+// The installer dir holds the signed installer and its .sig file.
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [version, baseUrl, outDir] = process.argv.slice(2);
-if (!version || !baseUrl || !outDir) throw new Error("usage: <version> <baseUrl> <outDir>");
+const [version, baseUrl, outDir, dir] = process.argv.slice(2);
+if (!version || !baseUrl || !outDir || !dir) throw new Error("usage: <version> <baseUrl> <outDir> <installerDir>");
 
-const dir = "src-tauri/target/release/bundle/nsis";
 const exe = readdirSync(dir).find((f) => f.endsWith("-setup.exe"));
 if (!exe) throw new Error("installer not found");
 const sigFile = join(dir, `${exe}.sig`);

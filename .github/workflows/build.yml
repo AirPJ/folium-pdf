@@ -9,11 +9,15 @@
 # (and its password, TAURI_SIGNING_PRIVATE_KEY_PASSWORD). Without them the
 # installer is still built, but no update is published.
 #
-# Security (see the audit in the project docs):
-# - The signing key is given to ONE step only, "Sign the installer", which
-#   runs nothing but the Tauri CLI. Installing dependencies and building
-#   never see it, so a compromised npm package or build script cannot
-#   steal it.
+# Security (see the audits in the project docs):
+# - Two jobs. "windows" builds the app: it runs thousands of files of
+#   third-party code (npm packages, Rust crates and their build scripts) and
+#   never receives a secret. "publish" runs afterwards on a fresh machine: it
+#   receives only the finished installer, installs only the Tauri CLI (exact
+#   version, locked in scripts/signer), signs and publishes. So no dependency
+#   of the app ever runs where the signing key is.
+# - "publish" uses the "release" environment: keep the signing secrets there
+#   and, if you wish, require your approval before each publication.
 # - Dependencies are installed without running their install scripts.
 # - Third-party actions are pinned to exact commits (the comment gives the
 #   version); Dependabot proposes updates.
@@ -31,18 +35,18 @@ on:
 permissions:
   contents: read
 
+# A newer push cancels the run of an older one for pull requests only: on
+# main, cancelling a run in the middle of publishing would leave no update
+# channel until the next build.
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   windows:
     runs-on: windows-latest
-    permissions:
-      contents: write # publish the test build and draft releases
-    env:
-      # Only whether a key exists ("yes"/"no"), never the key itself.
-      SIGNING: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && 'yes' || 'no' }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -73,38 +77,76 @@ jobs:
         id: version
         run: node scripts/ci-version.mjs
 
-      # Built without update files: the installer is signed in the next step.
+      # Built without update files: the installer is signed in the publish job.
       - name: Build the app and installer
         shell: bash
         run: npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
+      - name: Hand the installer to the publish job
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: windows
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write # publish the test build and draft releases
+    env:
+      # Only whether a key exists ("yes"/"no"), never the key itself.
+      SIGNING: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && 'yes' || 'no' }}
+      VERSION: ${{ needs.windows.outputs.version }}
+    steps:
+      # Only our own small scripts; none of the app's code or dependencies.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: installer
+          path: installer
+
+      - name: Install the signing tool (Tauri CLI only)
+        if: env.SIGNING == 'yes'
+        run: npm ci --ignore-scripts --prefix scripts/signer
+
       - name: Sign the installer (update signature)
-        if: env.SIGNING == 'yes' && github.event_name != 'pull_request'
-        shell: bash
+        if: env.SIGNING == 'yes'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          for f in src-tauri/target/release/bundle/nsis/*-setup.exe; do
-            npx --no-install tauri signer sign "$f"
+          for f in installer/*-setup.exe; do
+            scripts/signer/node_modules/.bin/tauri signer sign "$f"
           done
 
       - name: Publish test build (main branch)
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_NOTES: ${{ github.event.head_commit.message }}
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
         run: |
           mkdir -p out
           if [ "$SIGNING" = "yes" ]; then
             node scripts/ci-update-manifest.mjs "$VERSION" \
-              "https://github.com/${GITHUB_REPOSITORY}/releases/download/test-build" out
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/test-build" out installer
           else
             echo "::warning::No signing key secret: publishing without update files."
-            cp src-tauri/target/release/bundle/nsis/*-setup.exe "out/Folium-PDF_${VERSION}_x64-setup.exe"
-            printf '%s\n' "$RELEASE_NOTES" | grep -viE '^(Co-Authored-By|Claude-Session):' > release-notes.md
+            cp installer/*-setup.exe "out/Folium-PDF_${VERSION}_x64-setup.exe"
+            printf '%s\n' "$RELEASE_NOTES" | grep -viE '^(Co-Authored-By|Claude-Session|Signed-off-by):' > release-notes.md
           fi
           gh release delete test-build --cleanup-tag --yes || true
           gh release create test-build out/* \
@@ -117,7 +159,7 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
-          files: src-tauri/target/release/bundle/nsis/*.exe
+          files: installer/*.exe
 
   # Known vulnerabilities in dependencies, and the Rust unit tests.
   # Runs alongside the build; a failure here does not stop publishing, but
@@ -134,7 +176,9 @@ jobs:
           node-version: 22
 
       - name: npm audit
-        run: npm audit --audit-level=high
+        run: |
+          npm audit --audit-level=high
+          npm audit --audit-level=high --prefix scripts/signer
 
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable branch
         with:
