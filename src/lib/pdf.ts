@@ -226,6 +226,52 @@ export async function pagePrintImage(
   return { blob, widthPt, heightPt };
 }
 
+// --------------------------------------------------------------- text layer
+
+/**
+ * Builds the invisible, selectable text that sits over a rendered page so it
+ * can be selected and copied. Spans are created with `textContent` only.
+ * Resolves to null if the file was closed meanwhile.
+ */
+export async function buildTextLayer(
+  srcId: string,
+  index: number,
+  rotation: number,
+  cssWidth: number,
+  container: HTMLDivElement,
+): Promise<{ resize: (cssWidth: number) => void; cancel: () => void } | null> {
+  const entry = registry.get(srcId);
+  if (!entry) return null;
+  const page = await (await entry.view).getPage(index + 1);
+  const rot = (page.rotate + rotation) % 360;
+  const viewportFor = (w: number) => {
+    const base = page.getViewport({ scale: 1, rotation: rot });
+    const vp = page.getViewport({ scale: w / base.width, rotation: rot });
+    container.style.setProperty("--total-scale-factor", String(vp.scale * vp.userUnit));
+    return vp;
+  };
+  const layer = new pdfjs.TextLayer({
+    textContentSource: page.streamTextContent({ includeMarkedContent: true, disableNormalization: true }),
+    container,
+    viewport: viewportFor(cssWidth),
+  });
+  await layer.render();
+  // Lets a drag that leaves the text keep a sensible selection (as in PDF.js's own viewer).
+  const end = document.createElement("div");
+  end.className = "endOfContent";
+  container.append(end);
+  return {
+    resize: (w) => layer.update({ viewport: viewportFor(w) }),
+    cancel: () => layer.cancel(),
+  };
+}
+
+/** Text copied from a page, cleaned the way PDF.js's own viewer does it. */
+export function cleanCopiedText(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return pdfjs.normalizeUnicode(text).replace(/\x00/g, "");
+}
+
 // ------------------------------------------------------------------- search
 
 const textCache = new Map<string, string>();

@@ -4,6 +4,7 @@ import { CombineView } from "./components/CombineView";
 import { anyDialog, Busy, Dialogs, Toasts, typing } from "./components/Dialogs";
 import { IconUpload } from "./components/Icons";
 import { OrganizeView } from "./components/OrganizeView";
+import { pageTextSelected, selectAllPageText } from "./components/PageText";
 import { ReadView } from "./components/ReadView";
 import { TopBar } from "./components/TopBar";
 import { UpdateBanner } from "./components/Updates";
@@ -61,10 +62,15 @@ function useShortcuts() {
       if (typing()) return;
       if (ctrl && k === "z") return e.preventDefault(), e.shiftKey ? A.redo(doc.id) : A.undo(doc.id);
       if (ctrl && k === "y") return e.preventDefault(), A.redo(doc.id);
-      if (ctrl && k === "a") return e.preventDefault(), A.selectAll(doc.id);
+      // With page text selected, Ctrl+A selects that page's text and Ctrl+C copies it (browser default).
+      if (ctrl && k === "a") return e.preventDefault(), selectAllPageText() || A.selectAll(doc.id);
       if (ctrl && k === "e") return e.preventDefault(), A.extract(doc.id);
       if (ctrl && k === "d") return e.preventDefault(), A.duplicatePages(doc.id);
       if (ctrl) return;
+      if (pageTextSelected() && (e.key === "Delete" || e.key === "Backspace" || e.key === "Escape")) {
+        if (e.key === "Escape") document.getSelection()?.removeAllRanges();
+        return;
+      }
       if (e.key === "Delete" || e.key === "Backspace") return e.preventDefault(), A.deletePages(doc.id);
       if (k === "r") return e.preventDefault(), A.rotate(doc.id, e.shiftKey ? -90 : 90);
       if (e.key === "Escape") return A.setSelection(doc.id, []);

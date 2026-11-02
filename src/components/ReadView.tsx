@@ -4,6 +4,7 @@ import { formatBytes, t, tn } from "../i18n";
 import { outlineFor, type OutlineNode } from "../lib/pdf";
 import { useStore, type Doc } from "../store";
 import { PageImage } from "./PageImage";
+import { PageText } from "./PageText";
 import {
   IconChevronDown,
   IconCombine,
@@ -188,6 +189,7 @@ function Viewer({ doc }: { doc: Doc }) {
         {doc.pages.map((p, i) => (
           <div key={p.key} data-index={i} className="viewer-page">
             <PageImage srcId={p.srcId} index={p.srcIndex} rotation={p.rotation} width={width} alt={t("Page {n}", { n: i + 1 })} />
+            <PageText srcId={p.srcId} index={p.srcIndex} rotation={p.rotation} width={width} />
           </div>
         ))}
       </div>
