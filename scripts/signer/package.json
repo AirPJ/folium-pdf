@@ -4,6 +4,6 @@
   "description": "Only the Tauri CLI, used by the CI job that signs updates. Kept apart from the app's dependencies so the job holding the signing key installs and runs nothing else.",
   "license": "GPL-3.0-or-later",
   "devDependencies": {
-    "@tauri-apps/cli": "2.12.4"
+    "@tauri-apps/cli": "2.12.5"
   }
 }
